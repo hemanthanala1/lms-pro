@@ -122,3 +122,31 @@ export const generateQuiz = async (transcript: string) => {
 
   return response.text;
 };
+
+export const generateCourseDescription = async (title: string, category: string, level: string) => {
+  const client = getAIClient();
+  const prompt = `
+  You are an expert Proffessor. Write a compelling and educational course description for a course with the following details:
+  
+  Title: ${title}
+  Category: ${category}
+  Level: ${level}
+  
+  The description should be:
+  1. Engaging and professional.
+  2. Highlight key learning outcomes.
+  3. About 100-150 words long.
+  4. Formatted as a single paragraph or two short paragraphs.
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt
+    });
+    return response.text;
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return "Failed to generate description. Please try again.";
+  }
+};

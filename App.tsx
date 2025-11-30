@@ -126,7 +126,17 @@ const App: React.FC = () => {
         .select('course_id')
         .eq('user_id', userId);
       
-      const enrolledIds = enrollments ? enrollments.map((e: any) => e.course_id) : [];
+      const dbEnrollments = enrollments ? enrollments.map((e: any) => e.course_id) : [];
+
+      // Merge with Local Storage (for Mock Courses with non-UUID IDs)
+      let localEnrollments: string[] = [];
+      try {
+        localEnrollments = JSON.parse(localStorage.getItem(`enrollments_${userId}`) || '[]');
+      } catch (e) {
+        console.error("Error reading local enrollments", e);
+      }
+      
+      const allEnrollments = Array.from(new Set([...dbEnrollments, ...localEnrollments]));
 
       if (profile) {
         setUser({
@@ -137,7 +147,7 @@ const App: React.FC = () => {
           points: profile.points || 0,
           level: Math.floor((profile.points || 0) / 1000) + 1,
           avatar: profile.avatar_url,
-          enrolledCourses: enrolledIds
+          enrolledCourses: allEnrollments
         });
       }
     } catch (e) {
@@ -176,19 +186,35 @@ const App: React.FC = () => {
     }
     if (user.enrolledCourses.includes(courseId)) return;
 
-    // DB Insert
-    const { error } = await supabase
-      .from('enrollments')
-      .insert({ user_id: user.id, course_id: courseId });
+    // 1. Try Supabase (only if it looks like a UUID)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
     
-    if (error) {
-      console.error(error);
-      setToast({ message: 'Enrollment failed', type: 'info' });
-      return;
+    if (isUuid) {
+        const { error } = await supabase
+          .from('enrollments')
+          .insert({ user_id: user.id, course_id: courseId });
+        if (error) console.error("Supabase enrollment error", error);
+    } else {
+        console.log("Skipping Supabase for mock course ID:", courseId);
     }
 
-    const updatedUser = { ...user, enrolledCourses: [...user.enrolledCourses, courseId] };
-    setUser(updatedUser);
+    // 2. Always update Local Storage for reliability
+    try {
+      const key = `enrollments_${user.id}`;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!local.includes(courseId)) {
+          const newLocal = [...local, courseId];
+          localStorage.setItem(key, JSON.stringify(newLocal));
+      }
+    } catch (e) {
+      console.error("Error saving local enrollment", e);
+    }
+
+    // 3. Update State
+    setUser(prev => prev ? ({
+        ...prev,
+        enrolledCourses: [...prev.enrolledCourses, courseId]
+    }) : null);
     
     const course = MOCK_COURSES.find(c => c.id === courseId);
     const courseTitle = course ? course.title : 'the course';
@@ -202,23 +228,30 @@ const App: React.FC = () => {
   const handleUnenroll = async (courseId: string) => {
     if (!user) return;
 
-    // DB Delete
-    const { error } = await supabase
-      .from('enrollments')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('course_id', courseId);
-      
-    if(error) {
-       console.error(error);
-       return;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId);
+
+    if (isUuid) {
+        await supabase
+          .from('enrollments')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('course_id', courseId);
     }
 
-    const updatedUser = { 
-      ...user, 
-      enrolledCourses: user.enrolledCourses.filter(id => id !== courseId) 
-    };
-    setUser(updatedUser);
+    // Update Local Storage
+    try {
+      const key = `enrollments_${user.id}`;
+      const local = JSON.parse(localStorage.getItem(key) || '[]');
+      const newLocal = local.filter((id: string) => id !== courseId);
+      localStorage.setItem(key, JSON.stringify(newLocal));
+    } catch (e) {
+      console.error("Error updating local enrollments", e);
+    }
+
+    setUser(prev => prev ? ({
+        ...prev,
+        enrolledCourses: prev.enrolledCourses.filter(id => id !== courseId)
+    }) : null);
 
     const course = MOCK_COURSES.find(c => c.id === courseId);
     const courseTitle = course ? course.title : 'the course';
@@ -280,7 +313,7 @@ const App: React.FC = () => {
         );
       case 'player':
         if (!user) return <SignIn onSignIn={handleSignIn} onNavigate={navigate} />;
-        return <CoursePlayer onAwardPoints={handleAwardPoints} />;
+        return <CoursePlayer onAwardPoints={handleAwardPoints} onNavigate={navigate} />;
       case 'courses':
         return (
           <Courses 
@@ -298,7 +331,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-brand-50 font-sans text-slate-900 relative">
       {currentPath !== 'player' && currentPath !== 'signin' && currentPath !== 'signup' && (
-        <Navbar user={user} onSignOut={handleSignOut} onNavigate={navigate} />
+        <Navbar user={user} onSignOut={handleSignOut} onNavigate={navigate} currentPath={currentPath} />
       )}
       
       <main>

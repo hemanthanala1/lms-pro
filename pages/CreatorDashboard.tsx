@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { Course } from '../types';
+import { generateCourseDescription } from '../services/geminiService';
 
 interface CreatorDashboardProps {
   onNavigate: (path: string) => void;
@@ -21,6 +22,7 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onNavigate }) => {
   const [newCourseCategory, setNewCourseCategory] = useState('Development');
   const [newCourseDescription, setNewCourseDescription] = useState('');
   const [newCourseLevel, setNewCourseLevel] = useState('Beginner');
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -98,6 +100,25 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onNavigate }) => {
     } catch (error) {
       console.error('Error creating course:', error);
       alert('Failed to upload content');
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!newCourseTitle) {
+      alert('Please enter a title first.');
+      return;
+    }
+    setIsGeneratingDescription(true);
+    try {
+      const description = await generateCourseDescription(newCourseTitle, newCourseCategory, newCourseLevel);
+      if (description) {
+        setNewCourseDescription(description);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to generate description');
+    } finally {
+      setIsGeneratingDescription(false);
     }
   };
 
@@ -309,7 +330,24 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onNavigate }) => {
                      </select>
                   </div>
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                     <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <button 
+                          type="button"
+                          onClick={handleGenerateDescription}
+                          disabled={isGeneratingDescription || !newCourseTitle}
+                          className="text-xs text-rose-600 font-medium hover:text-rose-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isGeneratingDescription ? (
+                            <>Generating...</>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                              Generate with AI
+                            </>
+                          )}
+                        </button>
+                     </div>
                      <textarea 
                         required
                         value={newCourseDescription}

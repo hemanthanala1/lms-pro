@@ -20,6 +20,7 @@ export const MOCK_COURSES: Course[] = [
         id: 'l1',
         title: 'Understanding useEffect Deeply',
         duration: '14:20',
+        type: 'video',
         content: '# The Dependency Array\n\nThe dependency array in `useEffect` controls when the effect runs...',
         transcript: "Welcome to the lesson on useEffect. In this video, we will discuss the dependency array. If you leave it empty, it runs only on mount. If you add variables, it runs when they change. At 02:30, we discuss the infinite loop pitfall. Common mistake: updating a state that is also a dependency without conditions."
       },
@@ -27,8 +28,17 @@ export const MOCK_COURSES: Course[] = [
         id: 'l2',
         title: 'Custom Hooks for Logic Reuse',
         duration: '18:45',
+        type: 'video',
         content: '# Building useLocalStorage\n\nCustom hooks allow you to extract component logic into reusable functions...',
         transcript: "Let's build a custom hook called useLocalStorage. This hook abstracts the window.localStorage API. At 05:00 we handle the JSON parsing. Remember to wrap your initial state in a function if it's expensive to calculate."
+      },
+      {
+        id: 'l3',
+        title: 'React Cheatsheet & Best Practices',
+        duration: '10 min read',
+        type: 'text',
+        content: '# React Best Practices\n\n## 1. Component Structure\nKeep components small and focused on a single responsibility.\n\n## 2. State Management\nUse local state for UI interactions and global state (Context/Redux) only when necessary.\n\n## 3. Performance\n- Use `React.memo` for expensive renders.\n- Use `useCallback` to prevent function recreation.\n\n[Download PDF Version](#)',
+        transcript: "This is a reading material lesson. No audio transcript available."
       }
     ]
   },
@@ -50,6 +60,7 @@ export const MOCK_COURSES: Course[] = [
         id: 'l1',
         title: 'Introduction to Pandas',
         duration: '12:00',
+        type: 'video',
         content: '# DataFrames\n\nThe core structure in Pandas is the DataFrame...',
         transcript: "Pandas is built on top of NumPy. The main object is the DataFrame. Think of it like an Excel sheet but more powerful. At 03:15, we talk about iloc and loc for selection."
       }

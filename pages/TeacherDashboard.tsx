@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { Course } from '../types';
+import { generateCourseDescription } from '../services/geminiService';
 
 interface TeacherDashboardProps {
   onNavigate: (path: string) => void;
@@ -41,6 +42,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }) => {
   const [newCourseCategory, setNewCourseCategory] = useState('Development');
   const [newCourseDescription, setNewCourseDescription] = useState('');
   const [newCourseLevel, setNewCourseLevel] = useState('Beginner');
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -80,13 +82,13 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }) => {
 
       // Fetch Submissions
       const { data: submissionsData } = await supabase
-        .from('assignment_submissions')
+        .from('submissions')
         .select(`
           id,
           status,
           submitted_at,
           student:profiles(full_name),
-          assignment:course_assignments(title, course:courses(title))
+          assignment:assignments(title, course:courses(title))
         `);
         
       if (submissionsData) {
@@ -169,10 +171,29 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    if (!newCourseTitle) {
+      alert('Please enter a title first.');
+      return;
+    }
+    setIsGeneratingDescription(true);
+    try {
+      const description = await generateCourseDescription(newCourseTitle, newCourseCategory, newCourseLevel);
+      if (description) {
+        setNewCourseDescription(description);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Failed to generate description');
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const handleGradeSubmission = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('assignment_submissions')
+        .from('submissions')
         .update({ status: 'graded' })
         .eq('id', id);
 
@@ -363,6 +384,62 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }) => {
         </div>
       )}
 
+      {/* Grading Tab */}
+      {activeTab === 'grading' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+           <h2 className="text-lg font-bold text-slate-900 mb-6">Assignment Submissions</h2>
+           {submissions.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                 <p>No submissions to grade.</p>
+              </div>
+           ) : (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left border-collapse">
+                 <thead>
+                   <tr className="border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                     <th className="pb-3 pl-4">Student</th>
+                     <th className="pb-3">Assignment</th>
+                     <th className="pb-3">Course</th>
+                     <th className="pb-3">Submitted</th>
+                     <th className="pb-3">Status</th>
+                     <th className="pb-3 pr-4 text-right">Action</th>
+                   </tr>
+                 </thead>
+                 <tbody className="text-sm">
+                   {submissions.map(submission => (
+                     <tr key={submission.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                       <td className="py-4 pl-4 font-medium text-slate-900">{submission.student?.full_name || 'Unknown'}</td>
+                       <td className="py-4 text-gray-600">{submission.assignment?.title}</td>
+                       <td className="py-4 text-gray-500">{submission.course?.title}</td>
+                       <td className="py-4 text-gray-500">{new Date(submission.submitted_at).toLocaleDateString()}</td>
+                       <td className="py-4">
+                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                           submission.status === 'graded' 
+                             ? 'bg-green-100 text-green-700' 
+                             : 'bg-yellow-100 text-yellow-700'
+                         }`}>
+                           {submission.status}
+                         </span>
+                       </td>
+                       <td className="py-4 pr-4 text-right">
+                         {submission.status === 'pending' && (
+                           <button 
+                             onClick={() => handleGradeSubmission(submission.id)}
+                             className="text-brand-600 font-medium hover:text-brand-700 hover:underline"
+                           >
+                             Mark as Graded
+                           </button>
+                         )}
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+           )}
+        </div>
+      )}
+
       {/* Create Course Modal */}
       {isCreateModalOpen && (
          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -411,7 +488,24 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onNavigate }) => {
                      </select>
                   </div>
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                     <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <button 
+                          type="button"
+                          onClick={handleGenerateDescription}
+                          disabled={isGeneratingDescription || !newCourseTitle}
+                          className="text-xs text-brand-600 font-medium hover:text-brand-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isGeneratingDescription ? (
+                            <>Generating...</>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                              Generate with AI
+                            </>
+                          )}
+                        </button>
+                     </div>
                      <textarea 
                         required
                         value={newCourseDescription}

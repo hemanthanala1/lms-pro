@@ -32,6 +32,7 @@ export interface Lesson {
   id: string;
   title: string;
   duration: string;
+  type: 'video' | 'text' | 'quiz'; // Added content type
   videoUrl?: string; // Placeholder for video
   transcript: string; // Used for RAG
   content: string; // Markdown content
@@ -81,4 +82,52 @@ export interface LeaderboardEntry {
   avatar: string;
   points: number;
   rank: number;
+}
+
+// --- New Types for Assignments & Quizzes ---
+
+export interface Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  dueDate: string;
+}
+
+export interface AssignmentSubmission {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  content: string;
+  status: 'pending' | 'graded';
+  grade?: number;
+  feedback?: string;
+  submittedAt: string;
+}
+
+export interface Quiz {
+  id: string;
+  courseId: string;
+  lessonId?: string;
+  title: string;
+  description?: string;
+  questions: QuizQuestion[];
+}
+
+export interface QuizQuestion {
+  id: string;
+  quizId: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string; // The correct option string
+  explanation?: string;
+}
+
+export interface QuizSubmission {
+  id: string;
+  quizId: string;
+  studentId: string;
+  score: number;
+  answers: Record<string, string>; // questionId -> selectedOption
+  submittedAt: string;
 }
