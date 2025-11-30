@@ -160,7 +160,14 @@ const App: React.FC = () => {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    } finally {
+      setUser(null);
+      navigate('home');
+    }
   };
 
   const handleAwardPoints = async (points: number) => {
