@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
+import NotificationDropdown, { Notification } from './NotificationDropdown';
 
 interface NavbarProps {
   user: User | null;
@@ -8,8 +9,26 @@ interface NavbarProps {
   currentPath: string;
 }
 
+const MOCK_NOTIFICATIONS: Notification[] = [
+  { id: '1', title: 'Assignment Graded', message: 'Your "React Component Design" assignment has been graded.', type: 'success', read: false, createdAt: new Date().toISOString() },
+  { id: '2', title: 'New Course Available', message: 'Check out the new "Advanced TypeScript" course.', type: 'info', read: false, createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { id: '3', title: 'Quiz Reminder', message: 'You have a pending quiz in "UI/UX Design Principles".', type: 'warning', read: true, createdAt: new Date(Date.now() - 172800000).toISOString() },
+];
+
 const Navbar: React.FC<NavbarProps> = ({ user, onSignOut, onNavigate, currentPath }) => {
   const isActive = (path: string) => currentPath === path;
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const handleClearAll = () => {
+    setNotifications([]);
+  };
 
   return (
     <nav className="glass sticky top-0 z-50 transition-all duration-300">
@@ -81,6 +100,28 @@ const Navbar: React.FC<NavbarProps> = ({ user, onSignOut, onNavigate, currentPat
                </div>
              ) : (
                <div className="flex items-center gap-4">
+                 {/* Notification Bell */}
+                 <div className="relative">
+                    <button 
+                      onClick={() => setIsNotifOpen(!isNotifOpen)}
+                      className="p-2 text-gray-400 hover:text-slate-600 transition-colors relative"
+                    >
+                       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                       </svg>
+                       {unreadCount > 0 && (
+                         <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                       )}
+                    </button>
+                    <NotificationDropdown 
+                      notifications={notifications}
+                      onMarkAsRead={handleMarkAsRead}
+                      onClearAll={handleClearAll}
+                      isOpen={isNotifOpen}
+                      onClose={() => setIsNotifOpen(false)}
+                    />
+                 </div>
+
                  <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
                     <div className="text-right hidden md:block">
                        <div className="text-sm font-bold text-slate-800">{user.name}</div>

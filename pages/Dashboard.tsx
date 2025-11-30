@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { MOCK_COURSES, MOCK_BADGES, MOCK_LEADERBOARD } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Badge } from '../types';
+import { generateLearningPath } from '../services/geminiService';
 
 interface DashboardProps {
   onNavigate: (path: string) => void;
@@ -11,10 +11,19 @@ interface DashboardProps {
   enrolledCourseIds: string[];
 }
 
+interface LearningStep {
+  title: string;
+  description: string;
+  type: 'video' | 'article' | 'practice';
+  estimatedTime: string;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, userPoints, userBadges, enrolledCourseIds }) => {
   
   // Filter courses based on enrollment
   const myCourses = MOCK_COURSES.filter(course => enrolledCourseIds.includes(course.id));
+  const [learningPath, setLearningPath] = useState<LearningStep[]>([]);
+  const [isGeneratingPath, setIsGeneratingPath] = useState(false);
 
   const progressData = myCourses.map(c => ({
     name: c.title.split(' ').slice(0, 2).join(' '),
@@ -24,6 +33,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, userPoints, userBadge
   const nextLevelPoints = Math.ceil((userPoints + 1) / 1000) * 1000;
   const progressToNextLevel = (userPoints / nextLevelPoints) * 100;
   const currentLevel = Math.floor(userPoints / 1000) + 1;
+
+  const handleGeneratePath = async () => {
+    setIsGeneratingPath(true);
+    try {
+      // Mocking recent activity for demo
+      const recentTopics = ['React Hooks', 'State Management'];
+      const weakAreas = ['useEffect dependencies', 'Context API performance'];
+      
+      const path = await generateLearningPath(recentTopics, weakAreas);
+      setLearningPath(path);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingPath(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -45,6 +70,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, userPoints, userBadge
         {/* Left Col - Stats & Courses */}
         <div className="lg:col-span-2 space-y-8">
           
+          {/* AI Learning Path Section */}
+          <div className="bg-gradient-to-r from-brand-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+             <div className="relative z-10">
+                <div className="flex justify-between items-start mb-6">
+                   <div>
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                         AI Personalized Path
+                      </h2>
+                      <p className="text-brand-100 text-sm mt-1">Based on your recent quiz performance and weak areas.</p>
+                   </div>
+                   <button 
+                     onClick={handleGeneratePath}
+                     disabled={isGeneratingPath}
+                     className="bg-white text-brand-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-brand-50 transition-colors disabled:opacity-70"
+                   >
+                     {isGeneratingPath ? 'Analyzing...' : 'Generate New Path'}
+                   </button>
+                </div>
+
+                {learningPath.length > 0 ? (
+                   <div className="space-y-3">
+                      {learningPath.map((step, idx) => (
+                         <div key={idx} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">
+                               {idx + 1}
+                            </div>
+                            <div className="flex-1">
+                               <h3 className="font-bold text-white">{step.title}</h3>
+                               <p className="text-xs text-brand-100">{step.description}</p>
+                            </div>
+                            <div className="text-right">
+                               <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded uppercase">{step.type}</span>
+                               <div className="text-xs text-brand-100 mt-1">{step.estimatedTime}</div>
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+                ) : (
+                   <div className="text-center py-8 bg-white/5 rounded-xl border border-white/10 border-dashed">
+                      <p className="text-brand-100 text-sm">Click "Generate New Path" to get a custom study plan.</p>
+                   </div>
+                )}
+             </div>
+          </div>
+
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-4">
              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

@@ -150,3 +150,51 @@ export const generateCourseDescription = async (title: string, category: string,
     return "Failed to generate description. Please try again.";
   }
 };
+
+export const generateLearningPath = async (recentTopics: string[], weakAreas: string[]) => {
+  const client = getAIClient();
+  const prompt = `
+  You are an AI Learning Advisor. Based on the student's recent activity and weak areas, suggest a personalized learning path.
+
+  Student Context:
+  - Recently Studied: ${recentTopics.join(', ')}
+  - Weak Areas (needs improvement): ${weakAreas.join(', ')}
+
+  Generate a JSON response with a list of 3 recommended steps. Each step should have:
+  - title: A short, action-oriented title (e.g., "Review React Hooks").
+  - description: A 1-sentence explanation of why this is important.
+  - type: Either "video", "article", or "practice".
+  - estimatedTime: e.g., "15 mins".
+
+  Return ONLY valid JSON.
+  `;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ["video", "article", "practice"] },
+              estimatedTime: { type: Type.STRING }
+            }
+          }
+        }
+      }
+    });
+    
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return [];
+  }
+};
